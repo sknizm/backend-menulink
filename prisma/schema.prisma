@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PAUSED
+}
+
+// Models
+model User {
+  id          String       @id @default(uuid())
+  name        String?
+  email       String       @unique
+  password    String
+  restaurant  Restaurant?  
+  
+  Session     Session[]
+  createdAt   DateTime     @default(now())
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  expires      DateTime
+}
+
+model Restaurant {
+  id           String       @id @default(uuid())
+  name         String
+  slug         String       @unique
+  description  String?
+  logo         String?
+  address      String?
+  phone        String?
+  whatsapp     String?
+  instagram    String?
+  user         User         @relation(fields: [userId], references: [id], onDelete: NoAction)
+  userId       String       @unique
+  categories   Category[]
+  menuItems    MenuItem[]
+  membership   Membership?
+  payments     Payment[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+model Category {
+  id           String     @id @default(uuid())
+  name         String
+  description  String?
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  menuItems    MenuItem[]
+  createdAt    DateTime   @default(now())
+}
+
+model MenuItem {
+  id           String     @id @default(uuid())
+  name         String
+  description  String?
+  price        Float
+  image        String?
+  isAvailable  Boolean    @default(true)
+  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId   String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Membership {
+  id           String           @id @default(uuid())
+  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String           @unique
+  planId       String
+  status       MembershipStatus @default(ACTIVE)
+  startDate    DateTime         @default(now())
+  endDate      DateTime
+  renewsAt     DateTime
+  payments     Payment[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  amount        Float
+  currency      String        @default("INR")
+  status        PaymentStatus @default(PENDING)
+  paymentMethod String?
+  transactionId String?
+  membership    Membership?   @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  membershipId  String?
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId  String
+  invoiceUrl    String?
+  receiptUrl    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
