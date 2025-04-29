@@ -22,4 +22,6 @@ app.use(cors({
   app.use('/auth', authRoutes);
   app.use('/session', sessionRoutes);
 
+  app.use('/restaurant', restaurantRoutes);
+
 module.exports = app;

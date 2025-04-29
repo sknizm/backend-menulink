@@ -14,55 +14,84 @@ exports.checkRestaurantIfAlreadyExist = async (req, res) => {
   }
 };
 
-// ✅ Create restaurant
-exports.createRestaurant = async (req, res) => {
-  try {
-    const {
-      name,
-      slug,
-      description,
-      logo,
-      address,
-      phone,
-      whatsapp,
-      instagram,
-      userId,
-    } = req.body;
 
-    const newRestaurant = await prisma.restaurant.create({
-      data: {
-        name,
-        slug,
-        description,
-        logo,
-        address,
-        phone,
-        whatsapp,
-        instagram,
-        userId,
-      },
-    });
-
-    res.status(201).json(newRestaurant);
-  } catch (error) {
-    console.error('Error creating restaurant:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-};
-
-// ✅ Get restaurant slug by user ID
 exports.getRestaurantSlugByUserId = async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required" });
+  }
+
   try {
-    const { userId } = req.params;
-    const restaurant = await prisma.restaurant.findFirst({
+    const restaurant = await prisma.restaurant.findUnique({
       where: { userId },
       select: { slug: true },
     });
 
-    res.status(200).json({ slug: restaurant?.slug ?? null });
-  } catch (error) {
-    console.error('Error fetching slug:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    return res.status(200).json({ slug: restaurant.slug });
+  } catch (err) {
+    console.error("Error fetching slug:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ✅ Create restaurant
+exports.createRestaurant = async (req, res) => {
+  const { name, slug, whatsapp, userId  } = req.body;
+
+  if (!name || !slug || !userId) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    // Check if slug is already taken
+    const existing = await prisma.restaurant.findUnique({
+      where: { slug },
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: 'Restaurant with the Same URL Exist' });
+    }
+
+    // Create restaurant
+    const restaurant = await prisma.restaurant.create({
+      data: {
+        name,
+        slug,
+        whatsapp,
+        userId,
+      },
+    });
+
+    // Calculate dates
+    const now = new Date();
+    const oneDayLater = new Date(now.getTime() + 24 * 60 * 60 * 1000); // +1 day
+
+    // Create 1-day membership
+    const membership = await prisma.membership.create({
+      data: {
+        restaurantId: restaurant.id,
+        planId: "trial", // You can change this to match your pricing logic
+        status: "ACTIVE",
+        startDate: now,
+        endDate: oneDayLater,
+        renewsAt: oneDayLater,
+      },
+    });
+
+    return res.status(201).json({
+      message: 'Restaurant created',
+      restaurant,
+      membership,
+    });
+
+  } catch (err) {
+    console.error('Create restaurant error:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
