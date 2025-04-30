@@ -95,22 +95,75 @@ exports.createRestaurant = async (req, res) => {
   }
 };
 
-// ✅ Get user’s restaurant summary
-exports.getUserRestaurant = async (req, res) => {
+
+exports.updateRestaurant = async (req, res) => {
+  const { name, slug, address, phone, whatsapp, instagram, userId } = req.body;
+
   try {
-    const { userId } = req.params;
-    const restaurant = await prisma.restaurant.findFirst({
-      where: { userId },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
+    const existingSlug = await prisma.restaurant.findFirst({
+      where: {
+        slug,
+        NOT: { userId }, // make sure the slug isn't taken by another user
       },
     });
 
-    res.status(200).json(restaurant);
-  } catch (error) {
-    console.error('Error fetching restaurant:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    if (existingSlug) {
+      return res.status(400).json({ error: 'Slug already taken' });
+    }
+
+    const updated = await prisma.restaurant.update({
+      where: { userId },
+      data: { name, slug, address, phone, whatsapp, instagram },
+    });
+
+    return res.status(200).json({ message: 'Restaurant updated', restaurant: updated });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+// ✅ Get user’s restaurant summary
+exports.getRestaurantByUserId = async (req, res) => {  
+
+
+  try {  
+    const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required" });
+  }
+    const restaurant = await prisma.restaurant.findUnique({ where: { userId } });
+
+    if (!restaurant) {
+      return res.status(404).json({ error: 'Restaurant not found' });
+    }
+
+    return res.status(200).json({ restaurant });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+exports.checkSlug = async (req, res) => {
+  const { slug, userId } = req.query;
+
+  if (!slug) {
+    return res.status(400).json({ available: false, message: "Slug is required" });
+  }
+
+  const existing = await prisma.restaurant.findFirst({
+    where: {
+      slug: String(slug),
+      NOT: userId ? { userId: String(userId) } : undefined,
+    },
+  });
+
+  if (existing) {
+    return res.status(200).json({ available: false, message: "This URL is already taken" });
+  }
+
+  return res.status(200).json({ available: true, message: "This URL is available!" });
+};
+

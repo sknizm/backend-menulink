@@ -1,9 +1,10 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
-const userRoutes = require('./routes/userRoutes');
+const path = require('path');
 const sessionRoutes = require('./routes/sessionRoutes');
-const membershipRoutes = require('./routes/membershipRoutes');
 const restaurantRoutes = require('./routes/restaurantRoutes');
+const menuRoutes = require('./routes/menuRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 const authRoutes = require('./routes/authRoutes');
 const cors = require("cors")
 
@@ -18,10 +19,17 @@ app.use(cors({
     credentials: true,              // allow credentials (cookies)
   }));
   
+  const uploadPath = path.resolve(__dirname, 'assets/uploads');
+  app.use('/uploads', express.static(uploadPath));
+  
 // Routes
+  app.use('/upload', uploadRoutes);
+
   app.use('/auth', authRoutes);
   app.use('/session', sessionRoutes);
 
   app.use('/restaurant', restaurantRoutes);
+  app.use('/menu', menuRoutes);
+
 
 module.exports = app;
