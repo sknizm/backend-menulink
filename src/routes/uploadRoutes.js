@@ -32,7 +32,7 @@ router.post('/', upload.single('image'), (req, res) => {
   return res.status(200).json({
     message: 'File uploaded successfully',
     filename: req.file.filename,
-    url: `${process.env.BACKEND_URL}/uploads/${req.file.filename}`,
+    url: `${process.env.PUBLIC_BACKEND_URL}/uploads/${req.file.filename}`,
   });
 });
 

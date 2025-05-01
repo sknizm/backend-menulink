@@ -153,17 +153,50 @@ exports.checkSlug = async (req, res) => {
     return res.status(400).json({ available: false, message: "Slug is required" });
   }
 
-  const existing = await prisma.restaurant.findFirst({
-    where: {
+  try {
+    const whereClause = {
       slug: String(slug),
-      NOT: userId ? { userId: String(userId) } : undefined,
-    },
-  });
+      ...(userId && {
+        NOT: {
+          userId: String(userId),
+        },
+      }),
+    };
 
-  if (existing) {
-    return res.status(200).json({ available: false, message: "This URL is already taken" });
+    const existing = await prisma.restaurant.findFirst({ where: whereClause });
+
+    if (existing) {
+      return res.status(200).json({ available: false, message: "This URL is already taken" });
+    }
+
+    return res.status(200).json({ available: true, message: "This URL is available!" });
+  } catch (error) {
+    console.error('Slug check error:', error);
+    return res.status(500).json({ available: false, message: 'Server error' });
   }
-
-  return res.status(200).json({ available: true, message: "This URL is available!" });
 };
 
+exports.getRestaurantDataBySlug = async (req, res) => {
+  const { slug } = req.params;
+
+  try {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug },
+      include: {
+        categories: {
+          include: {
+            menuItems: true, // include items in each category
+          },
+        },
+      },
+    });
+
+    if (!restaurant) {
+      return res.status(404).json({ message: "Restaurant not found" });
+    }
+
+    res.json(restaurant);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch restaurant", error: err.message });
+  }
+};

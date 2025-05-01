@@ -125,14 +125,26 @@ exports.logoutUser = async (req, res) => {
 
 
 // ✅ Create user and session
+
 exports.createUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const exists = await prisma.user.findUnique({ where: { email } });
-    if (exists) return res.status(400).json({ error: 'User already exists' });
+    // Basic validation
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
 
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(409).json({ error: 'User already exists' });
+    }
+
+    // Hash password
     const hashedPassword = await passwordHasher(password);
+
+    // Create new user
     const newUser = await prisma.user.create({
       data: {
         email,
@@ -140,12 +152,23 @@ exports.createUser = async (req, res) => {
       },
     });
 
+    // Create session
     const { sessionToken, expires } = await createSession(newUser.id);
+
+    // Set cookie
     setSessionCookie(res, sessionToken, expires);
 
-    res.status(201).json({ message: 'User created', status: 201 });
+    // Respond with user info
+    return res.status(201).json({
+      message: 'Signup successful',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+      },
+    });
+
   } catch (error) {
     console.error('Error creating user:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
